@@ -1,0 +1,38 @@
+# ── dependencies & build output ──────────────────────────────────────────────
+node_modules/
+dist/
+*/dist/
+.vite/
+
+# ── secrets & environment (NEVER commit) ─────────────────────────────────────
+.env
+.env.*
+!.env*.example            # keep the example/template files
+*.working.bak
+*.local.bak
+**/id_rsa
+**/*_deploy               # ssh deploy keys
+
+# ── runtime data / uploads ───────────────────────────────────────────────────
+backend/uploads/
+uploads/
+storage/
+*.log
+npm-debug.log*
+
+# ── local tool/editor state ──────────────────────────────────────────────────
+.claude/
+
+# ── the original PHP source (licensed third-party code — do NOT publish) ─────
+.source/
+
+# ── QA / scratch harnesses ───────────────────────────────────────────────────
+backend/scripts/_qa_*
+tools/shots/
+tools/node_modules/
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

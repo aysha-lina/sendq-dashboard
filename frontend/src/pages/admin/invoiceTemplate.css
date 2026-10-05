@@ -1,0 +1,35 @@
+/* Invoice template editor — canvas + "Available tags" sidebar */
+.inv-body { display: flex; flex: 1; min-height: 0; }
+.inv-editor-wrap { flex: 1; min-width: 0; background: #f3f4f6; display: flex; }
+.inv-editor-wrap .tb-editor { background: #f3f4f6; }
+/* TinyMCE fills the editor pane */
+.inv-editor-wrap .tox-tinymce { height: 100% !important; width: 100%; border: 0; }
+
+.inv-tags {
+  width: 320px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-left: 1px solid #e5e7eb;
+  padding: 18px 16px;
+  overflow-y: auto;
+}
+.inv-tags h3 { font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px; }
+.inv-tags-grid { display: flex; flex-direction: column; gap: 10px; }
+.inv-tag {
+  display: block;
+  width: 100%;
+  padding: 9px 8px;
+  background: #6b7280;
+  color: #ffffff;
+  border: 0;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .12s ease;
+}
+.inv-tag:hover { background: #2f6bff; }

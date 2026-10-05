@@ -1,0 +1,1522 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTH & USERS
+// ============================================================
+
+model User {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid            String    @default(uuid()) @db.Char(36)
+  email          String    @unique @db.VarChar(255)
+  password       String    @db.VarChar(255)
+  api_token      String?   @unique @db.VarChar(60)
+  status         String    @default("active") @db.VarChar(255)
+  first_name     String?   @db.VarChar(255)
+  last_name      String?   @db.VarChar(255)
+  image          String?   @db.VarChar(255)
+  google_id      String?   @db.VarChar(255)
+  remember_token String?   @db.VarChar(255)
+  two_factor_enabled         Boolean   @default(false)
+  two_factor_method          String?   @db.VarChar(20)
+  two_factor_secret          String?   @db.VarChar(255)
+  two_factor_code            String?   @db.VarChar(10)
+  two_factor_code_expires_at DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  customer       Customer?
+  roles          UserRole[]
+  admins         Admin[]
+
+  @@map("sendq_users")
+}
+
+model PasswordReset {
+  email      String   @id @db.VarChar(255)
+  token      String   @db.VarChar(255)
+  created_at DateTime @default(now())
+
+  @@map("sendq_password_resets")
+}
+
+model UserActivation {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int      @db.UnsignedInt
+  token      String   @unique @db.VarChar(255)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("sendq_user_activations")
+}
+
+// ============================================================
+// CUSTOMERS & ADMIN
+// ============================================================
+
+model Customer {
+  id                       Int                      @id @default(autoincrement()) @db.UnsignedInt
+  uid                      String                   @default(uuid()) @db.Char(36)
+  user_id                  Int                      @unique @db.UnsignedInt
+  first_name               String                   @db.VarChar(255)
+  last_name                String                   @db.VarChar(255)
+  timezone                 String                   @default("UTC") @db.VarChar(255)
+  status                   String                   @default("active") @db.VarChar(255)
+  image                    String?                  @db.VarChar(255)
+  quota                    String?                  @db.Text
+  company                  String?                  @db.VarChar(255)
+  phone                    String?                  @db.VarChar(255)
+  address                  String?                  @db.VarChar(255)
+  city                     String?                  @db.VarChar(255)
+  state                    String?                  @db.VarChar(255)
+  zip                      String?                  @db.VarChar(255)
+  country                  String?                  @db.VarChar(255)
+  website                  String?                  @db.VarChar(255)
+  tax_number               String?                  @db.VarChar(255)
+  created_at               DateTime                 @default(now())
+  updated_at               DateTime                 @updatedAt
+  user                     User                     @relation(fields: [user_id], references: [id])
+  campaigns                Campaign[]
+  subscribers              Subscriber[]
+  lists                    MailList[]
+  emailLogs                EmailLog[]
+  automations              Automation[]
+  subscriptions            Subscription[]
+  roles                    Role[]
+  templates                Template[]
+  sendingServers           SendingServer[]
+  sendingDomains           SendingDomain[]
+  trackingDomains          TrackingDomain[]
+  signatures               Signature[]
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+  billingAddress           BillingAddress?
+  paymentMethods           PaymentMethod[]
+  invoices                 Invoice[]
+  warmupAccounts           WarmupAccount[]
+  forms                    Form[]
+  websites                 Website[]
+  webhooks                 Webhook[]
+  emailVerificationServers EmailVerificationServer[]
+
+  @@map("sendq_customers")
+}
+
+model AdminGroup {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  name         String   @db.VarChar(255)
+  options      String?  @db.Text
+  permissions  String?  @db.Text
+  custom_order Int?     @default(0)
+  creator_id   Int?     @db.UnsignedInt
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  admins       Admin[]
+
+  @@map("sendq_admin_groups")
+}
+
+model Admin {
+  id             Int        @id @default(autoincrement()) @db.UnsignedInt
+  uid            String     @default(uuid()) @db.Char(36)
+  user_id        Int        @db.UnsignedInt
+  creator_id     Int?       @db.UnsignedInt
+  contact_id     Int?       @db.UnsignedInt
+  admin_group_id Int        @db.UnsignedInt
+  language_id    Int?       @db.UnsignedInt
+  first_name     String     @db.VarChar(255)
+  last_name      String     @db.VarChar(255)
+  image          String?    @db.VarChar(255)
+  timezone       String     @db.VarChar(255)
+  status         String?    @db.VarChar(255)
+  color_scheme   String?    @db.VarChar(255)
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+  user           User       @relation(fields: [user_id], references: [id])
+  adminGroup     AdminGroup @relation(fields: [admin_group_id], references: [id])
+
+  @@unique([user_id])
+  @@map("sendq_admins")
+}
+
+// ============================================================
+// ROLES & PERMISSIONS
+// ============================================================
+
+model Role {
+  id              BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  uid             String           @default(uuid()) @db.Char(36)
+  name            String           @db.VarChar(255)
+  description     String?          @db.Text
+  status          String           @db.VarChar(255)
+  readonly        Boolean          @default(false)
+  customer_id     Int?             @db.UnsignedInt
+  is_global       Boolean          @default(true)
+  code            String?          @unique @db.VarChar(255)
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+  customer        Customer?        @relation(fields: [customer_id], references: [id])
+  rolePermissions RolePermission[]
+  users           UserRole[]
+
+  @@map("sendq_roles")
+}
+
+model UserRole {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    Int      @db.UnsignedInt
+  role_id    BigInt   @db.UnsignedBigInt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user       User     @relation(fields: [user_id], references: [id])
+  role       Role     @relation(fields: [role_id], references: [id])
+
+  @@unique([user_id, role_id])
+  @@map("sendq_user_role")
+}
+
+model RolePermission {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  role_id    BigInt   @db.UnsignedBigInt
+  permission String   @db.VarChar(255)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  role       Role     @relation(fields: [role_id], references: [id])
+
+  @@unique([role_id, permission])
+  @@map("sendq_role_permission")
+}
+
+// ============================================================
+// SYSTEM: CURRENCIES, SETTINGS, COUNTRIES
+// ============================================================
+
+model Currency {
+  id                 Int                 @id @default(autoincrement()) @db.UnsignedInt
+  uid                String              @default(uuid()) @db.Char(36)
+  admin_id           Int?                @db.UnsignedInt
+  name               String              @db.VarChar(255)
+  code               String              @db.VarChar(255)
+  format             String              @db.VarChar(255)
+  status             String              @default("active") @db.VarChar(255)
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
+  plans              Plan[]
+  invoices           Invoice[]
+  sendingCreditPlans SendingCreditPlan[]
+
+  @@map("sendq_currencies")
+}
+
+model Setting {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  name       String   @unique @db.VarChar(255)
+  value      String?  @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("sendq_settings")
+}
+
+model Country {
+  id               Int              @id @default(autoincrement()) @db.UnsignedInt
+  name             String           @db.VarChar(255)
+  code             String           @db.VarChar(10)
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  billingAddresses BillingAddress[]
+
+  @@map("sendq_countries")
+}
+
+// ============================================================
+// PLANS & BILLING
+// ============================================================
+
+model Plan {
+  id                            Int                 @id @default(autoincrement()) @db.UnsignedInt
+  uid                           String              @default(uuid()) @db.Char(36)
+  admin_id                      Int?                @db.UnsignedInt
+  currency_id                   Int?                @db.UnsignedInt
+  name                          String              @db.VarChar(255)
+  price                         Decimal             @default(0) @db.Decimal(16, 2)
+  frequency_amount              String?             @db.VarChar(255)
+  frequency_unit                String?             @db.VarChar(255)
+  daily_email_limit             Int                 @default(100)
+  options                       String?             @db.Text
+  features                      Json?
+  status                        String              @default("active") @db.VarChar(255)
+  custom_order                  Int                 @default(0)
+  is_default                    Boolean             @default(false)
+  description                   String?             @db.Text
+  type                          String              @default("prepaid") @db.VarChar(255)
+  trial_amount                  Int?
+  trial_unit                    String?             @db.VarChar(255)
+  visible                       Boolean             @default(true)
+  own_tracking_domain_required  Boolean             @default(false)
+  no_payment_required_when_free Boolean             @default(false)
+  email_verification_credits    Int                 @default(0)
+  created_at                    DateTime            @default(now())
+  updated_at                    DateTime            @updatedAt
+  currency                      Currency?           @relation(fields: [currency_id], references: [id])
+  subscriptions                 Subscription[]
+  planSendingServers            PlanSendingServer[]
+
+  @@map("sendq_plans")
+}
+
+model Subscription {
+  id                     Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid                    String    @default(uuid()) @db.Char(36)
+  customer_id            Int       @db.UnsignedInt
+  plan_id                Int       @db.UnsignedInt
+  status                 String    @default("active") @db.VarChar(255)
+  starts_at              DateTime?
+  ends_at                DateTime?
+  current_period_ends_at DateTime?
+  trial_ends_at          DateTime?
+  is_recurring           Boolean   @default(false)
+  terminated_at          DateTime?
+  terminated_reason      String?   @db.Text
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  customer               Customer  @relation(fields: [customer_id], references: [id])
+  plan                   Plan      @relation(fields: [plan_id], references: [id])
+  invoices               Invoice[]
+
+  @@map("sendq_subscriptions")
+}
+
+model Invoice {
+  id                            Int           @id @default(autoincrement()) @db.UnsignedInt
+  uid                           String        @default(uuid()) @db.Char(36)
+  customer_id                   Int           @db.UnsignedInt
+  currency_id                   Int           @db.UnsignedInt
+  subscription_id               Int?          @db.UnsignedInt
+  status                        String        @db.VarChar(255)
+  title                         String        @db.VarChar(255)
+  description                   String?       @db.Text
+  type                          String        @db.VarChar(255)
+  billing_first_name            String?       @db.VarChar(255)
+  billing_last_name             String?       @db.VarChar(255)
+  billing_address               String?       @db.VarChar(255)
+  billing_email                 String?       @db.VarChar(255)
+  billing_phone                 String?       @db.VarChar(255)
+  billing_country_id            Int?
+  fee                           Decimal?      @db.Decimal(16, 2)
+  number                        String?       @db.VarChar(255)
+  email_verification_credits    Int           @default(0)
+  sending_credits               Int           @default(0)
+  no_payment_required_when_free Boolean       @default(false)
+  created_at                    DateTime      @default(now())
+  updated_at                    DateTime      @updatedAt
+  customer                      Customer      @relation(fields: [customer_id], references: [id])
+  currency                      Currency      @relation(fields: [currency_id], references: [id])
+  subscription                  Subscription? @relation(fields: [subscription_id], references: [id])
+  items                         InvoiceItem[]
+  transactions                  Transaction[]
+
+  @@map("sendq_invoices")
+}
+
+model InvoiceItem {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  uid         String   @default(uuid()) @db.Char(36)
+  invoice_id  Int      @db.UnsignedInt
+  item_id     String   @db.VarChar(255)
+  item_type   String   @db.VarChar(255)
+  amount      Decimal  @default(0) @db.Decimal(16, 2)
+  tax         Decimal  @default(0) @db.Decimal(16, 2)
+  discount    Decimal  @default(0) @db.Decimal(16, 2)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  invoice     Invoice  @relation(fields: [invoice_id], references: [id])
+
+  @@map("sendq_invoice_items")
+}
+
+model Transaction {
+  id                Int            @id @default(autoincrement()) @db.UnsignedInt
+  uid               String         @default(uuid()) @db.Char(36)
+  invoice_id        Int            @db.UnsignedInt
+  payment_method_id BigInt?        @db.UnsignedBigInt
+  error             String?        @db.VarChar(255)
+  status            String         @db.VarChar(255)
+  method            String?        @db.VarChar(255)
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  invoice           Invoice        @relation(fields: [invoice_id], references: [id])
+  paymentMethod     PaymentMethod? @relation(fields: [payment_method_id], references: [id])
+
+  @@map("sendq_transactions")
+}
+
+model PaymentGateway {
+  id             BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  uid            String          @default(uuid()) @db.Char(36)
+  type           String          @db.VarChar(255)
+  name           String          @db.VarChar(255)
+  description    String?         @db.LongText
+  status         String          @default("active") @db.VarChar(255)
+  gateway_data   String?         @db.LongText
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  paymentMethods PaymentMethod[]
+
+  @@map("sendq_payment_gateways")
+}
+
+model PaymentMethod {
+  id                 BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                String         @default(uuid()) @db.Char(36)
+  customer_id        Int?           @db.UnsignedInt
+  payment_gateway_id BigInt         @db.UnsignedBigInt
+  autobilling_data   String?        @db.LongText
+  can_auto_charge    Boolean        @default(false)
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+  customer           Customer?      @relation(fields: [customer_id], references: [id])
+  paymentGateway     PaymentGateway @relation(fields: [payment_gateway_id], references: [id])
+  transactions       Transaction[]
+
+  @@map("sendq_payment_methods")
+}
+
+model BillingAddress {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  customer_id Int       @unique @db.UnsignedInt
+  first_name  String    @db.VarChar(255)
+  last_name   String    @db.VarChar(255)
+  address     String    @db.VarChar(255)
+  email       String    @db.VarChar(255)
+  phone       String?   @db.VarChar(255)
+  country_id  Int?      @db.UnsignedInt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  customer    Customer  @relation(fields: [customer_id], references: [id])
+  country     Country?  @relation(fields: [country_id], references: [id])
+
+  @@map("sendq_billing_addresses")
+}
+
+model SendingCreditPlan {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String   @default(uuid()) @db.Char(36)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  credits     BigInt
+  visibility  Boolean  @default(true)
+  currency_id Int      @db.UnsignedInt
+  price       Decimal  @db.Decimal(16, 2)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  currency    Currency @relation(fields: [currency_id], references: [id])
+
+  @@map("sendq_sending_credit_plans")
+}
+
+// ============================================================
+// SENDING INFRASTRUCTURE
+// ============================================================
+
+model SendingServer {
+  id                       Int                     @id @default(autoincrement()) @db.UnsignedInt
+  uid                      String                  @default(uuid()) @db.Char(36)
+  admin_id                 Int?                    @db.UnsignedInt
+  customer_id              Int?                    @db.UnsignedInt
+  bounce_handler_id        Int?                    @db.UnsignedInt
+  feedback_loop_handler_id Int?                    @db.UnsignedInt
+  name                     String                  @db.VarChar(255)
+  type                     String                  @db.VarChar(255)
+  host                     String?                 @db.VarChar(255)
+  aws_access_key_id        String?                 @db.VarChar(255)
+  aws_secret_access_key    String?                 @db.VarChar(255)
+  aws_region               String?                 @db.VarChar(255)
+  domain                   String?                 @db.VarChar(255)
+  api_key                  String?                 @db.VarChar(255)
+  api_secret_key           String?                 @db.Text
+  smtp_username            String?                 @db.VarChar(255)
+  smtp_password            String?                 @db.VarChar(255)
+  smtp_port                Int?
+  smtp_protocol            String?                 @db.VarChar(255)
+  sendmail_path            String?                 @db.VarChar(255)
+  username                 String?                 @db.VarChar(255)
+  quota_value              Int                     @default(1000)
+  quota_base               Int                     @default(1)
+  quota_unit               String                  @default("hour") @db.VarChar(255)
+  status                   String                  @default("active") @db.VarChar(255)
+  custom_order             Int                     @default(0)
+  options                  String?                 @db.Text
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+  customer                 Customer?               @relation(fields: [customer_id], references: [id])
+  bounceHandler            BounceHandler?          @relation(fields: [bounce_handler_id], references: [id])
+  feedbackLoopHandler      FeedbackLoopHandler?    @relation(fields: [feedback_loop_handler_id], references: [id])
+  sendingDomains           SendingDomain[]
+  mailListSendingServers   MailListSendingServer[]
+  planSendingServers       PlanSendingServer[]
+
+  @@map("sendq_sending_servers")
+}
+
+model SendingDomain {
+  id                    Int            @id @default(autoincrement()) @db.UnsignedInt
+  uid                   String         @default(uuid()) @db.Char(36)
+  customer_id           Int            @db.UnsignedInt
+  sending_server_id     Int?           @db.UnsignedInt
+  name                  String         @db.VarChar(255)
+  dkim_private          String?        @db.Text
+  dkim_public           String?        @db.Text
+  dkim_selector         String?        @db.Text
+  signing_enabled       Boolean        @default(false)
+  status                String         @default("unverified") @db.VarChar(255)
+  custom_order          Int            @default(0)
+  verification_token    String?        @db.Text
+  domain_verified       Boolean        @default(false)
+  dkim_verified         Boolean        @default(false)
+  spf_verified          Boolean        @default(false)
+  verification_hostname String?        @db.Text
+  options               String?        @db.Text
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+  customer              Customer       @relation(fields: [customer_id], references: [id])
+  sendingServer         SendingServer? @relation(fields: [sending_server_id], references: [id])
+
+  @@map("sendq_sending_domains")
+}
+
+model TrackingDomain {
+  id                  BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                 String   @default(uuid()) @db.Char(36)
+  customer_id         Int      @db.UnsignedInt
+  name                String   @db.VarChar(255)
+  status              String   @default("unverified") @db.VarChar(255)
+  scheme              String   @default("http") @db.VarChar(255)
+  verification_method String   @default("dns") @db.VarChar(255)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  customer            Customer @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_tracking_domains")
+}
+
+model MailListSendingServer {
+  id                Int           @id @default(autoincrement()) @db.UnsignedInt
+  mail_list_id      Int           @db.UnsignedInt
+  sending_server_id Int           @db.UnsignedInt
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  mailList          MailList      @relation(fields: [mail_list_id], references: [id])
+  sendingServer     SendingServer @relation(fields: [sending_server_id], references: [id])
+
+  @@unique([mail_list_id, sending_server_id])
+  @@map("sendq_mail_lists_sending_servers")
+}
+
+model PlanSendingServer {
+  id                Int           @id @default(autoincrement()) @db.UnsignedInt
+  plan_id           Int           @db.UnsignedInt
+  sending_server_id Int           @db.UnsignedInt
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  plan              Plan          @relation(fields: [plan_id], references: [id])
+  sendingServer     SendingServer @relation(fields: [sending_server_id], references: [id])
+
+  @@unique([plan_id, sending_server_id])
+  @@map("sendq_plans_sending_servers")
+}
+
+model BounceHandler {
+  id             Int             @id @default(autoincrement()) @db.UnsignedInt
+  uid            String          @default(uuid()) @db.Char(36)
+  admin_id       Int?            @db.UnsignedInt
+  name           String          @db.VarChar(255)
+  host           String          @db.VarChar(255)
+  username       String          @db.VarChar(255)
+  password       String          @db.VarChar(255)
+  port           String          @db.VarChar(255)
+  protocol       String          @db.VarChar(255)
+  encryption     String          @db.VarChar(255)
+  email          String          @db.VarChar(255)
+  status         String          @default("active") @db.VarChar(255)
+  custom_order   String?         @db.VarChar(255)
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  sendingServers SendingServer[]
+
+  @@map("sendq_bounce_handlers")
+}
+
+model FeedbackLoopHandler {
+  id             Int             @id @default(autoincrement()) @db.UnsignedInt
+  uid            String          @default(uuid()) @db.Char(36)
+  admin_id       Int?            @db.UnsignedInt
+  name           String          @db.VarChar(255)
+  type           String          @db.VarChar(255)
+  host           String          @db.VarChar(255)
+  username       String          @db.VarChar(255)
+  password       String          @db.VarChar(255)
+  port           String          @db.VarChar(255)
+  protocol       String          @db.VarChar(255)
+  encryption     String          @db.VarChar(255)
+  email          String          @db.VarChar(255)
+  status         String          @default("active") @db.VarChar(255)
+  custom_order   Int             @default(0)
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  sendingServers SendingServer[]
+
+  @@map("sendq_feedback_loop_handlers")
+}
+
+// ============================================================
+// MAIL LISTS & SUBSCRIBERS
+// ============================================================
+
+model MailList {
+  id                       Int                     @id @default(autoincrement()) @db.UnsignedInt
+  uid                      String                  @default(uuid()) @db.Char(36)
+  customer_id              Int                     @db.UnsignedInt
+  name                     String                  @db.VarChar(255)
+  from_email               String?                 @db.VarChar(255)
+  from_name                String?                 @db.VarChar(255)
+  default_subject          String?                 @db.VarChar(255)
+  remind_message           String?                 @db.Text
+  status                   String                  @default("active") @db.VarChar(255)
+  custom_order             Int                     @default(0)
+  subscribe_confirmation   Boolean                 @default(true)
+  send_welcome_email       Boolean                 @default(false)
+  unsubscribe_notification Boolean                 @default(false)
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+  customer                 Customer                @relation(fields: [customer_id], references: [id])
+  campaigns                Campaign[]
+  subscribers              Subscriber[]
+  segments                 Segment[]
+  listFields               ListField[]
+  forms                    ListForm[]
+  builderForms             Form[]
+  pages                    Page[]
+  sendingServers           MailListSendingServer[]
+
+  @@map("sendq_mail_lists")
+}
+
+model Subscriber {
+  id                  Int                    @id @default(autoincrement()) @db.UnsignedInt
+  uid                 String                 @default(uuid()) @db.Char(36)
+  customer_id         Int                    @db.UnsignedInt
+  mail_list_id        Int?                   @db.UnsignedInt
+  email               String                 @db.VarChar(255)
+  first_name          String?                @db.VarChar(255)
+  last_name           String?                @db.VarChar(255)
+  status              String                 @default("subscribed") @db.VarChar(255)
+  tags                String?                @db.Text
+  ip_address          String?                @db.VarChar(45)
+  source              String?                @db.VarChar(255)
+  verification_status String?                @db.VarChar(255)
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+  customer            Customer               @relation(fields: [customer_id], references: [id])
+  mailList            MailList?              @relation(fields: [mail_list_id], references: [id])
+  emailLogs           EmailLog[]
+  openLogs            OpenLog[]
+  clickLogs           ClickLog[]
+  bounceLogs          BounceLog[]
+  fieldValues         SubscriberFieldValue[]
+  trackingLogs        TrackingLog[]
+  unsubscribeLogs     UnsubscribeLog[]
+  feedbackLogs        FeedbackLog[]
+  autoTriggers        AutoTrigger[]
+
+  @@index([mail_list_id])
+  @@index([email])
+  @@map("sendq_subscribers")
+}
+
+model ListField {
+  id                Int                    @id @default(autoincrement()) @db.UnsignedInt
+  uid               String                 @default(uuid()) @db.Char(36)
+  mail_list_id      Int                    @db.UnsignedInt
+  label             String                 @db.VarChar(255)
+  tag               String                 @db.VarChar(255)
+  type              String                 @default("text") @db.VarChar(50)
+  required          Boolean                @default(false)
+  default_value     String?                @db.Text
+  options           Json?
+  sort_order        Int                    @default(0)
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+  mailList          MailList               @relation(fields: [mail_list_id], references: [id])
+  values            SubscriberFieldValue[]
+  segmentConditions SegmentCondition[]
+
+  @@unique([mail_list_id, tag])
+  @@map("sendq_list_fields")
+}
+
+model SubscriberFieldValue {
+  id            Int        @id @default(autoincrement()) @db.UnsignedInt
+  subscriber_id Int        @db.UnsignedInt
+  list_field_id Int        @db.UnsignedInt
+  value         String?    @db.Text
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+  subscriber    Subscriber @relation(fields: [subscriber_id], references: [id])
+  listField     ListField  @relation(fields: [list_field_id], references: [id])
+
+  @@unique([subscriber_id, list_field_id])
+  @@map("sendq_subscriber_field_values")
+}
+
+model Segment {
+  id                Int                @id @default(autoincrement()) @db.UnsignedInt
+  uid               String             @default(uuid()) @db.Char(36)
+  mail_list_id      Int                @db.UnsignedInt
+  name              String             @db.VarChar(255)
+  matching          String             @default("all") @db.VarChar(50)
+  conditions        Json?
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  mailList          MailList           @relation(fields: [mail_list_id], references: [id])
+  segmentConditions SegmentCondition[]
+
+  @@map("sendq_segments")
+}
+
+model SegmentCondition {
+  id          Int        @id @default(autoincrement()) @db.UnsignedInt
+  uid         String     @default(uuid()) @db.Char(36)
+  segment_id  Int        @db.UnsignedInt
+  field_id    Int?       @db.UnsignedInt
+  customer_id Int        @db.UnsignedInt
+  operator    String     @db.VarChar(255)
+  value       String?    @db.VarChar(255)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  segment     Segment    @relation(fields: [segment_id], references: [id])
+  field       ListField? @relation(fields: [field_id], references: [id])
+
+  @@map("sendq_segment_conditions")
+}
+
+model ListForm {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  uid          String   @default(uuid()) @db.Char(36)
+  mail_list_id Int      @db.UnsignedInt
+  name         String   @db.VarChar(255)
+  type         String   @default("embedded_form") @db.VarChar(100)
+  content      Json?
+  status       String   @default("active") @db.VarChar(50)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  mailList     MailList @relation(fields: [mail_list_id], references: [id])
+
+  @@map("sendq_list_forms")
+}
+
+// ============================================================
+// CAMPAIGNS
+// ============================================================
+
+model Campaign {
+  id                Int               @id @default(autoincrement()) @db.UnsignedInt
+  uid               String            @default(uuid()) @db.Char(36)
+  customer_id       Int               @db.UnsignedInt
+  mail_list_id      Int?              @db.UnsignedInt
+  segment_id        Int?              @db.UnsignedInt
+  template_id       Int?              @db.UnsignedInt
+  sending_server_id Int?              @db.UnsignedInt
+  type              String            @default("regular") @db.VarChar(100)
+  name              String            @db.Text
+  subject           String            @db.Text
+  preheader         String?           @db.Text
+  html              String?           @db.LongText
+  plain             String?           @db.LongText
+  from_email        String            @db.Text
+  from_name         String            @db.Text
+  reply_to          String?           @db.Text
+  status            String            @default("new") @db.VarChar(50)
+  sign_dkim         Boolean           @default(false)
+  track_open        Boolean           @default(true)
+  track_click       Boolean           @default(true)
+  resend            Int               @default(0)
+  custom_order      Int               @default(0)
+  options           String?           @db.LongText
+  last_error        String?           @db.Text
+  real_sent_count   Int               @default(0)
+  open_count        Int               @default(0)
+  click_count       Int               @default(0)
+  unsubscribe_count Int               @default(0)
+  bounce_count      Int               @default(0)
+  feedback_count    Int               @default(0)
+  run_at            DateTime?
+  delivery_at       DateTime?
+  scheduled_at      DateTime?
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
+  customer          Customer          @relation(fields: [customer_id], references: [id])
+  mailList          MailList?         @relation(fields: [mail_list_id], references: [id])
+  template          Template?         @relation(fields: [template_id], references: [id])
+  emailLogs         EmailLog[]
+  openLogs          OpenLog[]
+  clickLogs         ClickLog[]
+  bounceLogs        BounceLog[]
+  trackingLogs      TrackingLog[]
+  unsubscribeLogs   UnsubscribeLog[]
+  feedbackLogs      FeedbackLog[]
+  campaignLinks     CampaignLink[]
+  campaignWebhooks  CampaignWebhook[]
+  campaignHeaders   CampaignHeader[]
+  attachments       Attachment[]
+
+  @@map("sendq_campaigns")
+}
+
+model CampaignLink {
+  id               Int               @id @default(autoincrement()) @db.UnsignedInt
+  campaign_id      Int               @db.UnsignedInt
+  customer_id      Int               @db.UnsignedInt
+  url              String            @db.Text
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  campaign         Campaign          @relation(fields: [campaign_id], references: [id])
+  campaignWebhooks CampaignWebhook[]
+
+  @@map("sendq_campaign_links")
+}
+
+model CampaignWebhook {
+  id               BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  uid              String        @default(uuid()) @db.Char(36)
+  type             String        @db.VarChar(255)
+  endpoint         String        @db.Text
+  campaign_id      Int           @db.UnsignedInt
+  campaign_link_id Int?          @db.UnsignedInt
+  customer_id      Int           @db.UnsignedInt
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+  campaign         Campaign      @relation(fields: [campaign_id], references: [id])
+  campaignLink     CampaignLink? @relation(fields: [campaign_link_id], references: [id])
+
+  @@map("sendq_campaign_webhooks")
+}
+
+model CampaignHeader {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String   @default(uuid()) @db.Char(36)
+  campaign_id Int      @db.UnsignedInt
+  customer_id Int      @db.UnsignedInt
+  name        String   @db.VarChar(255)
+  value       String   @db.Text
+  editable    Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  campaign    Campaign @relation(fields: [campaign_id], references: [id])
+
+  @@map("sendq_campaign_headers")
+}
+
+model Attachment {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid         String    @default(uuid()) @db.Char(36)
+  email_id    Int?      @db.UnsignedInt
+  campaign_id Int?      @db.UnsignedInt
+  customer_id Int?      @db.UnsignedInt
+  name        String    @db.VarChar(255)
+  size        String    @db.VarChar(255)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  campaign    Campaign? @relation(fields: [campaign_id], references: [id])
+
+  @@map("sendq_attachments")
+}
+
+// ============================================================
+// TEMPLATES & LAYOUTS
+// ============================================================
+
+model Template {
+  id           Int                @id @default(autoincrement()) @db.UnsignedInt
+  uid          String             @default(uuid()) @db.Char(36)
+  customer_id  Int?               @db.UnsignedInt
+  admin_id     Int?               @db.UnsignedInt
+  name         String             @db.VarChar(255)
+  content      String?            @db.LongText
+  image        String?            @db.VarChar(255)
+  custom_order Int                @default(0)
+  shared       Boolean            @default(false)
+  created_at   DateTime           @default(now())
+  updated_at   DateTime           @updatedAt
+  customer     Customer?          @relation(fields: [customer_id], references: [id])
+  campaigns    Campaign[]
+  categories   TemplateCategory[] @relation("TemplateToCategory")
+
+  @@map("sendq_templates")
+}
+
+model TemplateCategory {
+  id         Int        @id @default(autoincrement()) @db.UnsignedInt
+  uid        String     @default(uuid()) @db.Char(36)
+  name       String     @db.VarChar(255)
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  templates  Template[] @relation("TemplateToCategory")
+
+  @@map("sendq_template_categories")
+}
+
+model Layout {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  uid        String   @default(uuid()) @db.Char(36)
+  alias      String?  @db.VarChar(255)
+  group_name String?  @db.VarChar(255)
+  content    String?  @db.LongText
+  type       String?  @db.VarChar(255)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  pages      Page[]
+
+  @@map("sendq_layouts")
+}
+
+model Page {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid          String    @default(uuid()) @db.Char(36)
+  layout_id    Int?      @db.UnsignedInt
+  mail_list_id Int?      @db.UnsignedInt
+  content      String?   @db.LongText
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  layout       Layout?   @relation(fields: [layout_id], references: [id])
+  mailList     MailList? @relation(fields: [mail_list_id], references: [id])
+
+  @@map("sendq_pages")
+}
+
+model Signature {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String   @default(uuid()) @db.Char(36)
+  customer_id Int      @db.UnsignedInt
+  name        String   @db.VarChar(255)
+  content     String   @db.LongText
+  status      String   @default("active") @db.VarChar(255)
+  is_default  Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  customer    Customer @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_signatures")
+}
+
+// ============================================================
+// TRACKING & ANALYTICS
+// ============================================================
+
+model TrackingLog {
+  id                 Int            @id @default(autoincrement()) @db.UnsignedInt
+  runtime_message_id String?        @unique @db.VarChar(255)
+  message_id         String?        @unique @db.VarChar(255)
+  customer_id        Int            @db.UnsignedInt
+  sending_server_id  Int?           @db.UnsignedInt
+  campaign_id        Int            @db.UnsignedInt
+  subscriber_id      Int            @db.UnsignedInt
+  status             String         @db.VarChar(255)
+  error              String?        @db.VarChar(255)
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+  campaign           Campaign       @relation(fields: [campaign_id], references: [id])
+  subscriber         Subscriber     @relation(fields: [subscriber_id], references: [id])
+  unsubscribeLogs    UnsubscribeLog[]
+  feedbackLogs       FeedbackLog[]
+
+  @@map("sendq_tracking_logs")
+}
+
+model EmailLog {
+  id            Int         @id @default(autoincrement()) @db.UnsignedInt
+  campaign_id   Int         @db.UnsignedInt
+  customer_id   Int         @db.UnsignedInt
+  subscriber_id Int?        @db.UnsignedInt
+  status        String      @default("queued") @db.VarChar(255)
+  message_id    String?     @db.VarChar(255)
+  error         String?     @db.Text
+  sent_at       DateTime?
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  campaign      Campaign    @relation(fields: [campaign_id], references: [id])
+  customer      Customer    @relation(fields: [customer_id], references: [id])
+  subscriber    Subscriber? @relation(fields: [subscriber_id], references: [id])
+
+  @@map("sendq_email_logs")
+}
+
+model OpenLog {
+  id            Int         @id @default(autoincrement()) @db.UnsignedInt
+  campaign_id   Int         @db.UnsignedInt
+  subscriber_id Int?        @db.UnsignedInt
+  ip            String?     @db.VarChar(45)
+  user_agent    String?     @db.Text
+  created_at    DateTime    @default(now())
+  campaign      Campaign    @relation(fields: [campaign_id], references: [id])
+  subscriber    Subscriber? @relation(fields: [subscriber_id], references: [id])
+
+  @@map("sendq_open_logs")
+}
+
+model ClickLog {
+  id            Int         @id @default(autoincrement()) @db.UnsignedInt
+  campaign_id   Int         @db.UnsignedInt
+  subscriber_id Int?        @db.UnsignedInt
+  url           String?     @db.Text
+  ip            String?     @db.VarChar(45)
+  user_agent    String?     @db.Text
+  created_at    DateTime    @default(now())
+  campaign      Campaign    @relation(fields: [campaign_id], references: [id])
+  subscriber    Subscriber? @relation(fields: [subscriber_id], references: [id])
+
+  @@map("sendq_click_logs")
+}
+
+model BounceLog {
+  id            Int         @id @default(autoincrement()) @db.UnsignedInt
+  campaign_id   Int         @db.UnsignedInt
+  subscriber_id Int?        @db.UnsignedInt
+  reason        String?     @db.Text
+  created_at    DateTime    @default(now())
+  campaign      Campaign    @relation(fields: [campaign_id], references: [id])
+  subscriber    Subscriber? @relation(fields: [subscriber_id], references: [id])
+
+  @@map("sendq_bounce_logs")
+}
+
+model UnsubscribeLog {
+  id              Int          @id @default(autoincrement()) @db.UnsignedInt
+  message_id      String?      @db.VarChar(255)
+  tracking_log_id Int?         @db.UnsignedInt
+  ip_address      String?      @db.Text
+  user_agent      String?      @db.Text
+  subscriber_id   Int?         @db.UnsignedInt
+  customer_id     Int?         @db.UnsignedInt
+  campaign_id     Int?         @db.UnsignedInt
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  subscriber      Subscriber?  @relation(fields: [subscriber_id], references: [id])
+  campaign        Campaign?    @relation(fields: [campaign_id], references: [id])
+  trackingLog     TrackingLog? @relation(fields: [tracking_log_id], references: [id])
+
+  @@map("sendq_unsubscribe_logs")
+}
+
+model FeedbackLog {
+  id                   Int          @id @default(autoincrement()) @db.UnsignedInt
+  runtime_message_id   String?      @db.VarChar(255)
+  message_id           String?      @db.VarChar(255)
+  feedback_type        String       @db.VarChar(255)
+  raw_feedback_content String?      @db.Text
+  customer_id          Int?         @db.UnsignedInt
+  tracking_log_id      Int?         @db.UnsignedInt
+  subscriber_id        Int?         @db.UnsignedInt
+  campaign_id          Int?         @db.UnsignedInt
+  created_at           DateTime     @default(now())
+  updated_at           DateTime     @updatedAt
+  subscriber           Subscriber?  @relation(fields: [subscriber_id], references: [id])
+  campaign             Campaign?    @relation(fields: [campaign_id], references: [id])
+  trackingLog          TrackingLog? @relation(fields: [tracking_log_id], references: [id])
+
+  @@map("sendq_feedback_logs")
+}
+
+model IpLocation {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  ip_address   String   @db.VarChar(255)
+  country_code String?  @db.VarChar(255)
+  country_name String?  @db.VarChar(255)
+  region_code  String?  @db.VarChar(255)
+  region_name  String?  @db.VarChar(255)
+  city         String?  @db.VarChar(255)
+  zipcode      String?  @db.VarChar(255)
+  latitude     String?  @db.VarChar(255)
+  longitude    String?  @db.VarChar(255)
+  metro_code   String?  @db.VarChar(255)
+  areacode     String?  @db.VarChar(255)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([ip_address])
+  @@map("sendq_ip_locations")
+}
+
+model Blacklist {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  customer_id Int?     @db.UnsignedInt
+  email       String   @db.VarChar(255)
+  reason      String?  @db.Text
+  created_at  DateTime @default(now())
+
+  @@unique([customer_id, email], map: "blacklist_customer_email_unique")
+  @@index([customer_id], map: "idx_blacklist_customer")
+  @@map("sendq_blacklists")
+}
+
+// ============================================================
+// AUTOMATION
+// ============================================================
+
+model Automation {
+  id           Int           @id @default(autoincrement()) @db.UnsignedInt
+  uid          String        @default(uuid()) @db.Char(36)
+  customer_id  Int           @db.UnsignedInt
+  mail_list_id Int?          @db.UnsignedInt
+  name         String        @db.VarChar(255)
+  trigger      String        @db.VarChar(255)
+  workflow     Json?
+  data         String?       @db.LongText
+  segment_id   String?       @db.Text
+  time_zone    String?       @db.VarChar(255)
+  last_error   String?       @db.Text
+  status       String        @default("inactive") @db.VarChar(255)
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+  customer     Customer      @relation(fields: [customer_id], references: [id])
+  autoTriggers AutoTrigger[]
+
+  @@map("sendq_automations")
+}
+
+model AutoTrigger {
+  id                 Int             @id @default(autoincrement()) @db.UnsignedInt
+  uid                String          @default(uuid()) @db.Char(36)
+  subscriber_id      Int?            @db.UnsignedInt
+  customer_id        Int             @db.UnsignedInt
+  automation_id      Int?            @db.UnsignedInt
+  trigger_session_id Int?            @db.UnsignedInt
+  preceded_by        Int?            @db.UnsignedInt
+  start_at           DateTime?
+  is_error           Boolean         @default(false)
+  cached_subscriber  String?         @db.Text
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+  subscriber         Subscriber?     @relation(fields: [subscriber_id], references: [id])
+  automation         Automation?     @relation(fields: [automation_id], references: [id])
+  triggerSession     TriggerSession? @relation(fields: [trigger_session_id], references: [id])
+
+  @@map("sendq_auto_triggers")
+}
+
+model TriggerSession {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  uid           String        @default(uuid()) @db.Char(36)
+  automation_id Int?          @db.UnsignedInt
+  customer_id   Int?          @db.UnsignedInt
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  autoTriggers  AutoTrigger[]
+
+  @@map("sendq_trigger_sessions")
+}
+
+// ============================================================
+// EMAIL VERIFICATION
+// ============================================================
+
+model EmailVerificationServer {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid         String    @default(uuid()) @db.Char(36)
+  admin_id    Int?      @db.UnsignedInt
+  customer_id Int?      @db.UnsignedInt
+  name        String    @db.Text
+  type        String    @db.Text
+  options     String?   @db.Text
+  status      String    @db.VarChar(255)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  customer    Customer? @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_email_verification_servers")
+}
+
+// ============================================================
+// EMAIL WARMUP
+// ============================================================
+
+model WarmupPlan {
+  id                  BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                 String          @default(uuid()) @db.Char(36)
+  name                String          @db.VarChar(255)
+  target_daily_volume Int             @default(1000)
+  duration_days       Int             @default(30)
+  ramp_pattern        String          @default("linear") @db.VarChar(255)
+  is_default          Boolean         @default(false)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  planDays            WarmupPlanDay[]
+  accounts            WarmupAccount[]
+
+  @@map("sendq_warmup_plans")
+}
+
+model WarmupPlanDay {
+  id             BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  warmup_plan_id BigInt     @db.UnsignedBigInt
+  day_number     Int
+  send_count     Int
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+  warmupPlan     WarmupPlan @relation(fields: [warmup_plan_id], references: [id])
+
+  @@map("sendq_warmup_plan_days")
+}
+
+model WarmupInbox {
+  id                   BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                  String              @default(uuid()) @db.Char(36)
+  email                String              @db.VarChar(255)
+  protocol             String              @default("imap") @db.VarChar(255)
+  host                 String              @db.VarChar(255)
+  port                 Int                 @default(993)
+  username             String              @db.VarChar(255)
+  password             String              @db.Text
+  encryption           String              @default("ssl") @db.VarChar(255)
+  folder               String              @default("INBOX") @db.VarChar(255)
+  auto_reply           Boolean             @default(true)
+  auto_reply_templates String?             @db.Text
+  status               String              @default("active") @db.VarChar(255)
+  created_at           DateTime            @default(now())
+  updated_at           DateTime            @updatedAt
+  seedAddresses        WarmupSeedAddress[]
+
+  @@map("sendq_warmup_inboxes")
+}
+
+model WarmupSeedAddress {
+  id              BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  uid             String       @default(uuid()) @db.Char(36)
+  email           String       @db.VarChar(255)
+  warmup_inbox_id BigInt?      @db.UnsignedBigInt
+  status          String       @default("active") @db.VarChar(255)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  warmupInbox     WarmupInbox? @relation(fields: [warmup_inbox_id], references: [id])
+  warmupLogs      WarmupLog[]
+
+  @@map("sendq_warmup_seed_addresses")
+}
+
+model WarmupAccount {
+  id              BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  uid             String      @default(uuid()) @db.Char(36)
+  customer_id     Int         @db.UnsignedInt
+  warmup_plan_id  BigInt?     @db.UnsignedBigInt
+  name            String      @db.VarChar(255)
+  smtp_host       String      @db.VarChar(255)
+  smtp_port       Int         @default(587)
+  smtp_username   String      @db.VarChar(255)
+  smtp_password   String      @db.Text
+  smtp_encryption String      @default("tls") @db.VarChar(255)
+  from_email      String      @db.VarChar(255)
+  from_name       String      @db.VarChar(255)
+  daily_limit     Int         @default(1000)
+  current_day     Int         @default(0)
+  status          String      @default("inactive") @db.VarChar(255)
+  started_at      DateTime?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+  customer        Customer    @relation(fields: [customer_id], references: [id])
+  warmupPlan      WarmupPlan? @relation(fields: [warmup_plan_id], references: [id])
+  warmupLogs      WarmupLog[]
+
+  @@map("sendq_warmup_accounts")
+}
+
+model WarmupEmail {
+  id          BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String      @default(uuid()) @db.Char(36)
+  customer_id Int?        @db.UnsignedInt
+  subject     String      @db.VarChar(255)
+  body_html   String      @db.LongText
+  body_plain  String?     @db.LongText
+  is_global   Boolean     @default(false)
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  warmupLogs  WarmupLog[]
+
+  @@map("sendq_warmup_emails")
+}
+
+model WarmupLog {
+  id                BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  warmup_account_id BigInt             @db.UnsignedBigInt
+  warmup_email_id   BigInt?            @db.UnsignedBigInt
+  seed_address_id   BigInt?            @db.UnsignedBigInt
+  from_email        String             @db.VarChar(255)
+  to_email          String             @db.VarChar(255)
+  subject           String             @db.VarChar(255)
+  status            String             @default("sent") @db.VarChar(255)
+  sent_at           DateTime?
+  opened_at         DateTime?
+  replied_at        DateTime?
+  error             String?            @db.Text
+  message_id        String?            @db.VarChar(255)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  warmupAccount     WarmupAccount      @relation(fields: [warmup_account_id], references: [id])
+  warmupEmail       WarmupEmail?       @relation(fields: [warmup_email_id], references: [id])
+  seedAddress       WarmupSeedAddress? @relation(fields: [seed_address_id], references: [id])
+
+  @@index([message_id])
+  @@index([warmup_account_id, sent_at])
+  @@map("sendq_warmup_logs")
+}
+
+// ============================================================
+// FORMS, WEBSITES & WEBHOOKS
+// ============================================================
+
+model Form {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid          String    @default(uuid()) @db.Char(36)
+  name         String    @db.VarChar(255)
+  customer_id  Int       @db.UnsignedInt
+  mail_list_id Int?      @db.UnsignedInt
+  template_id  Int?      @db.UnsignedInt
+  metadata     String?   @db.LongText
+  status       String    @default("draft") @db.VarChar(255)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  customer     Customer  @relation(fields: [customer_id], references: [id])
+  mailList     MailList? @relation(fields: [mail_list_id], references: [id])
+
+  @@map("sendq_forms")
+}
+
+model Website {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String    @default(uuid()) @db.Char(36)
+  title       String    @db.VarChar(255)
+  url         String    @db.Text
+  status      String    @default("active") @db.VarChar(255)
+  customer_id Int?      @db.UnsignedInt
+  metadata    String?   @db.LongText
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  customer    Customer? @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_websites")
+}
+
+model Webhook {
+  id                          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid                         String    @default(uuid()) @db.Char(36)
+  customer_id                 Int?      @db.UnsignedInt
+  event                       String    @db.VarChar(255)
+  name                        String    @db.VarChar(255)
+  status                      String    @default("active") @db.VarChar(255)
+  setting_retry_times         Int       @default(3)
+  setting_retry_after_seconds Int       @default(60)
+  request_method              String    @default("POST") @db.VarChar(255)
+  request_url                 String?   @db.VarChar(255)
+  request_auth_type           String    @default("none") @db.VarChar(255)
+  request_auth_bearer_token   String?   @db.VarChar(255)
+  request_auth_basic_username String?   @db.VarChar(255)
+  request_auth_basic_password String?   @db.VarChar(255)
+  request_auth_custom_key     String?   @db.VarChar(255)
+  request_auth_custom_value   String?   @db.VarChar(255)
+  request_headers             String?   @db.Text
+  request_body_type           String    @default("json") @db.VarChar(255)
+  request_body_params         String?   @db.Text
+  request_body_plain          String?   @db.Text
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime  @updatedAt
+  customer                    Customer? @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_webhooks")
+}
+
+// ============================================================
+// NOTIFICATIONS & AUDIT LOGS
+// ============================================================
+
+model Notification {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid         String    @default(uuid()) @db.Char(36)
+  type        String    @db.Text
+  title       String    @db.Text
+  message     String    @db.Text
+  level       String    @db.Text
+  admin_id    Int?      @db.UnsignedInt
+  customer_id Int?      @db.UnsignedInt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  customer    Customer? @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_notifications")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  customer_id Int      @db.UnsignedInt
+  type        String   @db.VarChar(255)
+  name        String   @db.VarChar(255)
+  data        String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  customer    Customer @relation(fields: [customer_id], references: [id])
+
+  @@map("sendq_logs")
+}
+
+// ============================================================
+// FAILED JOBS
+// ============================================================
+
+model FailedJob {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  uuid      String   @unique @db.VarChar(255)
+  connection String  @db.Text
+  queue     String   @db.Text
+  payload   String   @db.LongText
+  exception String?  @db.LongText
+  failed_at DateTime @default(now())
+
+  @@map("sendq_failed_jobs")
+}
+
+// ============================================================
+// STORE / E-COMMERCE  (Wave 5e — new additive tables)
+// FK columns kept as scalars (no relations to core models) to keep this
+// change isolated to new tables. Relations only among store models.
+// ============================================================
+
+model Category {
+  id          BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  uid         String?     @default(uuid()) @db.Char(36)
+  name        String      @db.VarChar(255)
+  description String?     @db.Text
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  attributes  Attribute[]
+
+  @@map("sendq_categories")
+}
+
+model Attribute {
+  id                BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  uid               String?            @default(uuid()) @db.Char(36)
+  category_id       BigInt             @db.UnsignedBigInt
+  name              String             @db.VarChar(255)
+  status            String?            @db.VarChar(255)
+  description       String?            @db.Text
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  category          Category           @relation(fields: [category_id], references: [id])
+  productAttributes ProductAttribute[]
+
+  @@index([category_id])
+  @@map("sendq_attributes")
+}
+
+model Product {
+  id                Int                @id @default(autoincrement()) @db.UnsignedInt
+  uid               String             @default(uuid()) @db.Char(36)
+  customer_id       Int                @db.UnsignedInt
+  source_id         Int?               @db.UnsignedInt
+  title             String?            @db.VarChar(255)
+  description       String?            @db.MediumText
+  content           String?            @db.LongText
+  price             Decimal?           @db.Decimal(16, 2)
+  source_item_id    String?            @db.VarChar(255)
+  meta              String?            @db.LongText
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  productAttributes ProductAttribute[]
+
+  @@index([customer_id])
+  @@map("sendq_products")
+}
+
+model ProductAttribute {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  uid          String?   @default(uuid()) @db.Char(36)
+  product_id   Int       @db.UnsignedInt
+  attribute_id BigInt    @db.UnsignedBigInt
+  value        String    @db.VarChar(255)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  product      Product   @relation(fields: [product_id], references: [id])
+  attribute    Attribute @relation(fields: [attribute_id], references: [id])
+
+  @@index([product_id])
+  @@index([attribute_id])
+  @@map("sendq_product_attributes")
+}
+
+model Funnel {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  uid         String   @default(uuid()) @db.Char(36)
+  customer_id Int?     @db.UnsignedInt
+  name        String?  @db.Text
+  message     String?  @db.Text
+  content     String?  @db.LongText
+  status      String?  @db.VarChar(255)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("sendq_funnels")
+}
+
+model Order {
+  id              Int       @id @default(autoincrement()) @db.UnsignedInt
+  uid             String?   @default(uuid()) @db.Char(36)
+  customer_id     Int?      @db.UnsignedInt
+  source_id       Int?      @db.UnsignedInt
+  name            String?   @db.Text
+  description     String?   @db.Text
+  content         String?   @db.LongText
+  price           String?   @db.VarChar(255)
+  meta            String?   @db.LongText
+  status          String?   @db.VarChar(255)
+  source_item_id  String?   @db.VarChar(255)
+  file            String?   @db.VarChar(255)
+  amount          Int?
+  tax             Int?
+  move            Int?
+  total           Int?
+  transport       Int?
+  delivery        DateTime? @db.Date
+  receive_name    String?   @db.VarChar(255)
+  receive_address String?   @db.VarChar(255)
+  receive_phone   String?   @db.VarChar(255)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([customer_id])
+  @@map("sendq_orders")
+}
+
+model Media {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  uid         String?  @default(uuid()) @db.Char(36)
+  customer_id Int?     @db.UnsignedInt
+  source      String?  @db.VarChar(255)
+  type        String?  @db.VarChar(255)
+  dir         String?  @db.VarChar(255)
+  ext         String?  @db.VarChar(255)
+  slug        String?  @db.VarChar(255)
+  thumes      String?  @db.VarChar(255)
+  status      String?  @db.VarChar(255)
+  author      String?  @db.VarChar(255)
+  caption     String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([customer_id])
+  @@map("sendq_media")
+}
